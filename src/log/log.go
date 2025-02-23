@@ -1,7 +1,7 @@
 package log
 
 import (
-	"github.com/lucky-cheerful-man/phoenix_server/src/config"
+	"github.com/sunshine-walker-93/phoenix_account/src/config"
 
 	"github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"

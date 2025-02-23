@@ -10,7 +10,6 @@ package mysql
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -23,7 +22,7 @@ type mysqlStmt struct {
 }
 
 func (stmt *mysqlStmt) Close() error {
-	if stmt.mc == nil || stmt.mc.closed.Load() {
+	if stmt.mc == nil || stmt.mc.closed.IsSet() {
 		// driver.Stmt.Close can be called more than once, thus this function
 		// has to be idempotent.
 		// See also Issue #450 and golang/go#16019.
@@ -44,14 +43,9 @@ func (stmt *mysqlStmt) ColumnConverter(idx int) driver.ValueConverter {
 	return converter{}
 }
 
-func (stmt *mysqlStmt) CheckNamedValue(nv *driver.NamedValue) (err error) {
-	nv.Value, err = converter{}.ConvertValue(nv.Value)
-	return
-}
-
 func (stmt *mysqlStmt) Exec(args []driver.Value) (driver.Result, error) {
-	if stmt.mc.closed.Load() {
-		stmt.mc.log(ErrInvalidConn)
+	if stmt.mc.closed.IsSet() {
+		errLog.Print(ErrInvalidConn)
 		return nil, driver.ErrBadConn
 	}
 	// Send command
@@ -61,10 +55,12 @@ func (stmt *mysqlStmt) Exec(args []driver.Value) (driver.Result, error) {
 	}
 
 	mc := stmt.mc
-	handleOk := stmt.mc.clearResult()
+
+	mc.affectedRows = 0
+	mc.insertId = 0
 
 	// Read Result
-	resLen, err := handleOk.readResultSetHeaderPacket()
+	resLen, err := mc.readResultSetHeaderPacket()
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +77,14 @@ func (stmt *mysqlStmt) Exec(args []driver.Value) (driver.Result, error) {
 		}
 	}
 
-	if err := handleOk.discardResults(); err != nil {
+	if err := mc.discardResults(); err != nil {
 		return nil, err
 	}
 
-	copied := mc.result
-	return &copied, nil
+	return &mysqlResult{
+		affectedRows: int64(mc.affectedRows),
+		insertId:     int64(mc.insertId),
+	}, nil
 }
 
 func (stmt *mysqlStmt) Query(args []driver.Value) (driver.Rows, error) {
@@ -94,8 +92,8 @@ func (stmt *mysqlStmt) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func (stmt *mysqlStmt) query(args []driver.Value) (*binaryRows, error) {
-	if stmt.mc.closed.Load() {
-		stmt.mc.log(ErrInvalidConn)
+	if stmt.mc.closed.IsSet() {
+		errLog.Print(ErrInvalidConn)
 		return nil, driver.ErrBadConn
 	}
 	// Send command
@@ -107,8 +105,7 @@ func (stmt *mysqlStmt) query(args []driver.Value) (*binaryRows, error) {
 	mc := stmt.mc
 
 	// Read Result
-	handleOk := stmt.mc.clearResult()
-	resLen, err := handleOk.readResultSetHeaderPacket()
+	resLen, err := mc.readResultSetHeaderPacket()
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +129,6 @@ func (stmt *mysqlStmt) query(args []driver.Value) (*binaryRows, error) {
 	return rows, err
 }
 
-var jsonType = reflect.TypeOf(json.RawMessage{})
-
 type converter struct{}
 
 // ConvertValue mirrors the reference/default converter in database/sql/driver
@@ -141,7 +136,7 @@ type converter struct{}
 // implementation does not.  This function should be kept in sync with
 // database/sql/driver defaultConverter.ConvertValue() except for that
 // deliberate difference.
-func (c converter) ConvertValue(v any) (driver.Value, error) {
+func (c converter) ConvertValue(v interface{}) (driver.Value, error) {
 	if driver.IsValue(v) {
 		return v, nil
 	}
@@ -151,17 +146,12 @@ func (c converter) ConvertValue(v any) (driver.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		if driver.IsValue(sv) {
-			return sv, nil
+		if !driver.IsValue(sv) {
+			return nil, fmt.Errorf("non-Value type %T returned from Value", sv)
 		}
-		// A value returned from the Valuer interface can be "a type handled by
-		// a database driver's NamedValueChecker interface" so we should accept
-		// uint64 here as well.
-		if u, ok := sv.(uint64); ok {
-			return u, nil
-		}
-		return nil, fmt.Errorf("non-Value type %T returned from Value", sv)
+		return sv, nil
 	}
+
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Ptr:
@@ -180,14 +170,11 @@ func (c converter) ConvertValue(v any) (driver.Value, error) {
 	case reflect.Bool:
 		return rv.Bool(), nil
 	case reflect.Slice:
-		switch t := rv.Type(); {
-		case t == jsonType:
-			return v, nil
-		case t.Elem().Kind() == reflect.Uint8:
+		ek := rv.Type().Elem().Kind()
+		if ek == reflect.Uint8 {
 			return rv.Bytes(), nil
-		default:
-			return nil, fmt.Errorf("unsupported type %T, a slice of %s", v, t.Elem().Kind())
 		}
+		return nil, fmt.Errorf("unsupported type %T, a slice of %s", v, ek)
 	case reflect.String:
 		return rv.String(), nil
 	}

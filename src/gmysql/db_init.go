@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
-	"github.com/lucky-cheerful-man/phoenix_server/src/config"
-	"github.com/lucky-cheerful-man/phoenix_server/src/log"
+	"github.com/sunshine-walker-93/phoenix_account/src/config"
+	"github.com/sunshine-walker-93/phoenix_account/src/log"
 )
 
 var DBOperate *Mysql

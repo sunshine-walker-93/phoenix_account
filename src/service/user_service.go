@@ -10,13 +10,13 @@ import (
 	"os"
 	"time"
 
-	pb "github.com/lucky-cheerful-man/phoenix_apis/protobuf3.pb/user_info_manage"
-	"github.com/lucky-cheerful-man/phoenix_server/src/config"
-	"github.com/lucky-cheerful-man/phoenix_server/src/constant"
-	"github.com/lucky-cheerful-man/phoenix_server/src/gmysql"
-	"github.com/lucky-cheerful-man/phoenix_server/src/gredis"
-	"github.com/lucky-cheerful-man/phoenix_server/src/log"
-	"github.com/lucky-cheerful-man/phoenix_server/src/util"
+	"github.com/sunshine-walker-93/phoenix_account/src/config"
+	"github.com/sunshine-walker-93/phoenix_account/src/constant"
+	"github.com/sunshine-walker-93/phoenix_account/src/gmysql"
+	"github.com/sunshine-walker-93/phoenix_account/src/gredis"
+	"github.com/sunshine-walker-93/phoenix_account/src/log"
+	"github.com/sunshine-walker-93/phoenix_account/src/util"
+	pb "github.com/sunshine-walker-93/phoenix_apis/protobuf3.pb/user_info_manage"
 )
 
 type UserService struct {

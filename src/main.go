@@ -1,18 +1,17 @@
 package main
 
 import (
-	"github.com/asim/go-micro/plugins/registry/etcd/v3"
-	goMirco "github.com/asim/go-micro/v3"
-	"github.com/asim/go-micro/v3/registry"
-	financialPb "github.com/lucky-cheerful-man/phoenix_apis/protobuf3.pb/financial_manage"
-	userPb "github.com/lucky-cheerful-man/phoenix_apis/protobuf3.pb/user_info_manage"
+	userPb "github.com/sunshine-walker-93/phoenix_apis/protobuf3.pb/user_info_manage"
+	goMicro "go-micro.dev/v5"
 
-	_ "github.com/lucky-cheerful-man/phoenix_server/src/gmysql"
-	_ "github.com/lucky-cheerful-man/phoenix_server/src/gredis"
+	_ "github.com/sunshine-walker-93/phoenix_account/src/gmysql"
+	_ "github.com/sunshine-walker-93/phoenix_account/src/gredis"
 
-	"github.com/lucky-cheerful-man/phoenix_server/src/config"
-	"github.com/lucky-cheerful-man/phoenix_server/src/log"
-	"github.com/lucky-cheerful-man/phoenix_server/src/service"
+	"github.com/micro/plugins/v5/registry/etcd"
+	"github.com/sunshine-walker-93/phoenix_account/src/config"
+	"github.com/sunshine-walker-93/phoenix_account/src/log"
+	"github.com/sunshine-walker-93/phoenix_account/src/service"
+	"go-micro.dev/v5/registry"
 )
 
 func main() {
@@ -20,21 +19,15 @@ func main() {
 		registry.Addrs(config.ReferGlobalConfig().ServerSetting.RegisterAddress),
 	)
 	// 初始化服务
-	srv := goMirco.NewService(
-		goMirco.Name(config.ReferGlobalConfig().ServerSetting.RegisterServerName),
-		goMirco.Version(config.ReferGlobalConfig().ServerSetting.RegisterServerVersion),
-		goMirco.Registry(etcdReg),
+	srv := goMicro.NewService(
+		goMicro.Name(config.ReferGlobalConfig().ServerSetting.RegisterServerName),
+		goMicro.Version(config.ReferGlobalConfig().ServerSetting.RegisterServerVersion),
+		goMicro.Registry(etcdReg),
 	)
 
 	err := userPb.RegisterUserServiceHandler(srv.Server(), &service.UserService{})
 	if err != nil {
 		log.Error("RegisterUserServiceHandler failed, err:%s", err)
-		return
-	}
-
-	err = financialPb.RegisterFinancialServiceHandler(srv.Server(), &service.FinancialService{})
-	if err != nil {
-		log.Error("RegisterFinancialServiceHandler failed, err:%s", err)
 		return
 	}
 

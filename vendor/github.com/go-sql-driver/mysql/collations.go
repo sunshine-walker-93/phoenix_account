@@ -9,12 +9,11 @@
 package mysql
 
 const defaultCollation = "utf8mb4_general_ci"
-const binaryCollationID = 63
+const binaryCollation = "binary"
 
 // A list of available collations mapped to the internal ID.
 // To update this map use the following MySQL query:
-//
-//	SELECT COLLATION_NAME, ID FROM information_schema.COLLATIONS WHERE ID<256 ORDER BY ID
+//     SELECT COLLATION_NAME, ID FROM information_schema.COLLATIONS WHERE ID<256 ORDER BY ID
 //
 // Handshake packet have only 1 byte for collation_id.  So we can't use collations with ID > 255.
 //
@@ -248,7 +247,7 @@ var collations = map[string]byte{
 	"utf8mb4_0900_ai_ci":       255,
 }
 
-// A denylist of collations which is unsafe to interpolate parameters.
+// A blacklist of collations which is unsafe to interpolate parameters.
 // These multibyte encodings may contains 0x5c (`\`) in their trailing bytes.
 var unsafeCollations = map[string]bool{
 	"big5_chinese_ci":        true,
