@@ -1,6 +1,8 @@
 module github.com/sunshine-walker-93/phoenix_account
 
-go 1.18
+go 1.24
+
+toolchain go1.24.0
 
 require (
 	github.com/go-ini/ini v1.67.0
